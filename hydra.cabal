@@ -18,14 +18,15 @@ executable hydra
   default-language: Haskell2010
   main-is:          Main.hs
   hs-source-dirs:   src
+  other-modules:    Sjcl
   ghc-options:      -Wall -fwarn-tabs
 
   build-depends: aeson          >= 0.11.0 && < 0.12.0
                , base           >= 4.9    && < 4.10
-               , bytestring     >= 0.10.8 && < 0.11.0
                , containers     >= 0.5.7  && < 0.6.0
                , free           >= 4.12   && < 5.0
                , http-types     >= 0.9    && < 0.10
                , scotty         >= 0.11   && < 0.12
+               , stm            >= 2.4    && < 3.0
                , text           >= 1.2    && < 1.3
                , warp           >= 3.2    && < 4.0
