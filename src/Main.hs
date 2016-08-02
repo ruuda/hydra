@@ -18,7 +18,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (notFound404)
-import Web.Scotty (get, json, jsonData, param, put, scotty, status, text)
+import Web.Scotty (file, get, json, jsonData, param, put, scotty, status, text)
 
 import Sjcl (EncryptedData, emptyEncryptedData)
 
@@ -57,6 +57,9 @@ lookupEntry entryName entries =
 serve :: TVar (Set Entry) -> IO ()
 serve entriesVar = scotty 2971 $ do
 
+  get "/" $
+    file "index.html"
+
   get "/api/entries" $ do
     entries <- liftIO $ readTVarIO entriesVar
     let names = fmap name $ Set.toList entries
@@ -86,6 +89,14 @@ serve entriesVar = scotty 2971 $ do
 
 main :: IO ()
 main = do
-  entriesVar <- atomically $ newTVar Set.empty
+  let initialEntries = Set.fromList [
+          entryWithName "Fatima",
+          entryWithName "Frank",
+          entryWithName "Helen",
+          entryWithName "Henk",
+          entryWithName "Peter",
+          entryWithName "Piet"
+        ]
+  entriesVar <- atomically $ newTVar initialEntries
   serve entriesVar
 
