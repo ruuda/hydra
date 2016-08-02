@@ -9,3 +9,6 @@
 # Editor files
 *.swp
 *.swo
+
+# Elm stuff
+/elm-stuff
