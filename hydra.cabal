@@ -1,0 +1,31 @@
+name:                hydra
+version:             0.0.0
+category:            Password
+synopsis:            Multi-user secret store
+
+copyright:           Copyright 2016 Ruud van Asseldonk
+license:             GPL-3
+license-file:        license
+
+author:              Ruud van Asseldonk
+maintainer:          dev@veniogames.com
+
+build-type:          Simple
+extra-source-files:  readme.md
+cabal-version:       >=1.10
+
+executable hydra
+  default-language: Haskell2010
+  main-is:          Main.hs
+  hs-source-dirs:   src
+  ghc-options:      -Wall -fwarn-tabs
+
+  build-depends: aeson          >= 0.11.0 && < 0.12.0
+               , base           >= 4.9    && < 4.10
+               , bytestring     >= 0.10.8 && < 0.11.0
+               , containers     >= 0.5.7  && < 0.6.0
+               , free           >= 4.12   && < 5.0
+               , http-types     >= 0.9    && < 0.10
+               , scotty         >= 0.11   && < 0.12
+               , text           >= 1.2    && < 1.3
+               , warp           >= 3.2    && < 4.0
