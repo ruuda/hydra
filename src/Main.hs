@@ -58,7 +58,10 @@ serve :: TVar (Set Entry) -> IO ()
 serve entriesVar = scotty 2971 $ do
 
   get "/" $
-    file "index.html"
+    file "static/index.html"
+
+  get "/main.js" $
+    file "static/main.js"
 
   get "/api/entries" $ do
     entries <- liftIO $ readTVarIO entriesVar

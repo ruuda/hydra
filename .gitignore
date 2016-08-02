@@ -1,6 +1,7 @@
 # Build output
 /.stack-work
 /dist
+/static/main.js
 
 # Cabal sandbox
 /.cabal-sandbox
