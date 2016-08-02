@@ -4,16 +4,17 @@
 -- it under the terms of the GNU General Public License version 3. See
 -- the licence file in the root of the repository.
 
-import Html exposing (Html, div, input, li, ul, text)
+import Html exposing (Html, button, div, h2, input, label, li, ul, text)
 import Html.App as App
 import Html.Attributes exposing (placeholder)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Json
 import List exposing (filter, map)
 import String exposing (contains, toLower)
 import Task
 
+main : Program Never
 main =
   App.program
     { init = init
@@ -36,6 +37,7 @@ type alias Model =
   , currentEntry : Maybe Entry
   }
 
+emptyModel : Model
 emptyModel =
   { searchString = ""
   , entryNames = ["piet", "klaas"]
@@ -49,6 +51,7 @@ init = (emptyModel, getEntryNames)
 
 type Msg
   = SearchStringChanged String
+  | AddNewEntryClicked
   | EntryNamesReceived (List String)
   | EntryNamesFailed Http.Error
 
@@ -57,6 +60,10 @@ update msg model =
   case msg of
     SearchStringChanged newString ->
       ({ model | searchString = newString }, Cmd.none)
+
+    AddNewEntryClicked ->
+      -- TODO: Deal with new entry form.
+      (model, Cmd.none)
 
     EntryNamesReceived names ->
       ({ model | entryNames = names }, Cmd.none)
@@ -83,7 +90,22 @@ view model =
     selectedEntries = filterEntries model.searchString model.entryNames
   in
     div []
-      [ input [ placeholder "type here to search", onInput SearchStringChanged ] []
+      [ h2 [] [ text "Add new entry" ]
+      , label []
+        [ text "Name"
+        , input [] []
+        ]
+      , label []
+        [ text "Login"
+        , input [] []
+        ]
+      , label []
+        [ text "Password"
+        , input [] []
+        ]
+      , button [ onClick AddNewEntryClicked ] [ text "Add" ]
+      , h2 [] [ text "Browse entries" ]
+      , input [ placeholder "type here to search", onInput SearchStringChanged ] []
       , ul [] (map renderListItem selectedEntries)
       ]
 
