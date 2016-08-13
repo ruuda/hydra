@@ -14,6 +14,7 @@ import Json.Encode
 import List exposing (filter, map)
 import String exposing (contains, toLower)
 import Task
+import Task exposing (Task, andThen, mapError)
 
 import Entry as Entry
 import Entry exposing (Entry)
@@ -79,13 +80,13 @@ update msg model =
     EntryNamesReceived names ->
       ({ model | entryNames = names }, Cmd.none)
 
-    EntryNamesFailed error ->
+    EntryNamesFailed reason ->
       -- TODO: Display a message? Retry?
       (model, Cmd.none)
 
     EntryEditorMsg msg ->
       let
-        (updatedModel, entryCmd) = Entry.update msg model.editEntry
+        (updatedModel, entryCmd) = Entry.update saveEntry msg model.editEntry
         cmd = Cmd.map EntryEditorMsg entryCmd
       in
         ({ model | editEntry = updatedModel }, cmd)
@@ -132,3 +133,34 @@ getEntryNames =
 decodeEntryNames : Json.Decoder (List String)
 decodeEntryNames =
   Json.list Json.string
+
+saveEntry : Entry -> Task Http.Error ()
+saveEntry entry =
+  let
+    url = "/api/entries/" ++ (Http.uriEncode entry.name)
+    bodyJson = Entry.encrypt "hard-coded-key" entry
+    body = Http.string (Json.Encode.encode 0 bodyJson)
+    rawTask = Http.send Http.defaultSettings
+      { verb = "PUT"
+      , headers = [ ("Content-Type", "application/json") ]
+      , url = url
+      , body = body
+      }
+    toHttpError rawError =
+      case rawError of
+        Http.RawTimeout -> Http.Timeout
+        Http.RawNetworkError -> Http.NetworkError
+    verifyOk response =
+      if response.status == 200
+        then
+          Task.succeed ()
+        else
+          let
+            reason =
+              case response.value of
+                Http.Text message -> message
+                Http.Blob _ -> "cannot make sense of server error message"
+          in
+            Task.fail (Http.BadResponse response.status reason)
+  in
+    (mapError toHttpError rawTask) `andThen` verifyOk
