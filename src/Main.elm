@@ -10,9 +10,13 @@ import Html.Attributes exposing (placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Json
+import Json.Encode
 import List exposing (filter, map)
 import String exposing (contains, toLower)
 import Task
+
+-- Native import, see src/Native/Sjcl.js
+import Native.Sjcl exposing (encrypt, decrypt)
 
 main : Program Never
 main =
@@ -22,6 +26,18 @@ main =
     , update = update
     , subscriptions = subscriptions
     }
+
+-- Wrapper functions for the Stanford Javascript Crypto Library.
+
+-- The json structure returned by SJCL. Could be given more structure,
+-- but let's not bother for now.
+type alias EncryptedData = Json.Encode.Value
+
+encrypt : String -> String -> EncryptedData
+encrypt = Native.Sjcl.encrypt
+
+decrypt : String -> EncryptedData -> String
+decrypt = Native.Sjcl.decrypt
 
 -- MODEL
 
@@ -112,8 +128,7 @@ view model =
 -- SUBSCRIPTIONS
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-  Sub.none
+subscriptions model = Sub.none
 
 -- HTTP
 

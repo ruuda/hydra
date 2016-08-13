@@ -1,7 +1,7 @@
-default: static/main.js static/sjcl.js
+default: static/main.js static/sjcl.js static/index.html
 	stack build
 
-static/main.js: src/Main.elm
+static/main.js: src/Main.elm src/Native/Sjcl.js
 	elm make --warn --output static/main.js src/Main.elm
 
 static/sjcl.js:
