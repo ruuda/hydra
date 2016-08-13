@@ -15,6 +15,9 @@ import List exposing (filter, map)
 import String exposing (contains, toLower)
 import Task
 
+import Entry as Entry
+import Entry exposing (Entry)
+
 -- Native import, see src/Native/Sjcl.js
 import Native.Sjcl exposing (encrypt, decrypt)
 
@@ -41,16 +44,11 @@ decrypt = Native.Sjcl.decrypt
 
 -- MODEL
 
-type alias Entry =
-  { name : String
-  , login : String
-  , password : String
-  }
-
 type alias Model =
   { searchString : String
   , entryNames : List String
   , currentEntry : Maybe Entry
+  , editEntry : Entry
   }
 
 emptyModel : Model
@@ -58,6 +56,7 @@ emptyModel =
   { searchString = ""
   , entryNames = ["piet", "klaas"]
   , currentEntry = Nothing
+  , editEntry = Entry.empty
   }
 
 init : (Model, Cmd Msg)
@@ -67,9 +66,9 @@ init = (emptyModel, getEntryNames)
 
 type Msg
   = SearchStringChanged String
-  | AddNewEntryClicked
   | EntryNamesReceived (List String)
   | EntryNamesFailed Http.Error
+  | EntryEditorMsg Entry.Msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -77,16 +76,19 @@ update msg model =
     SearchStringChanged newString ->
       ({ model | searchString = newString }, Cmd.none)
 
-    AddNewEntryClicked ->
-      -- TODO: Deal with new entry form.
-      (model, Cmd.none)
-
     EntryNamesReceived names ->
       ({ model | entryNames = names }, Cmd.none)
 
     EntryNamesFailed error ->
       -- TODO: Display a message? Retry?
       (model, Cmd.none)
+
+    EntryEditorMsg msg ->
+      let
+        (updatedModel, entryCmd) = Entry.update msg model.editEntry
+        cmd = Cmd.map EntryEditorMsg entryCmd
+      in
+        ({ model | editEntry = updatedModel }, cmd)
 
 -- VIEW
 
@@ -107,19 +109,7 @@ view model =
   in
     div []
       [ h2 [] [ text "Add new entry" ]
-      , label []
-        [ text "Name"
-        , input [] []
-        ]
-      , label []
-        [ text "Login"
-        , input [] []
-        ]
-      , label []
-        [ text "Password"
-        , input [] []
-        ]
-      , button [ onClick AddNewEntryClicked ] [ text "Add" ]
+      , div [] [ App.map EntryEditorMsg (Entry.view model.editEntry) ]
       , h2 [] [ text "Browse entries" ]
       , input [ placeholder "type here to search", onInput SearchStringChanged ] []
       , ul [] (map renderListItem selectedEntries)
@@ -135,7 +125,6 @@ subscriptions model = Sub.none
 getEntryNames : Cmd Msg
 getEntryNames =
   let
-    -- TODO: Fix urls and port numbers
     getRequest = Http.get decodeEntryNames "/api/entries"
   in
     Task.perform EntryNamesFailed EntryNamesReceived getRequest
