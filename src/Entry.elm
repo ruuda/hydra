@@ -109,6 +109,6 @@ encrypt : String -> Entry -> EncryptedEntry
 encrypt key entry =
   Json.object
     [ ("name", Json.string entry.name)
-    , ("login", Sjcl.encrypt key entry.login)
-    , ("password", Sjcl.encrypt key entry.password)
+    , ("login", Json.string (Sjcl.encrypt key entry.login))
+    , ("password", Json.string (Sjcl.encrypt key entry.password))
     ]

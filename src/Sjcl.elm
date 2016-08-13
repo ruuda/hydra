@@ -5,20 +5,17 @@
 -- the licence file in the root of the repository.
 
 -- This module exposes the Stanford Javascript Crypto Library to Elm.
-module Sjcl exposing (EncryptedData, encrypt, decrypt)
-
-import Json.Encode
+module Sjcl exposing (Ciphertext, Plaintext, encrypt, decrypt)
 
 -- Import the js functions sjcl.encrypt and sjcl.decrypt.
 -- See also src/Native/Sjcl.js.
 import Native.Sjcl exposing (encrypt, decrypt)
 
--- The json structure returned by SJCL. Could be given more structure,
--- but let's not bother for now.
-type alias EncryptedData = Json.Encode.Value
+type alias Ciphertext = String
+type alias Plaintext = String
 
-encrypt : String -> String -> EncryptedData
+encrypt : String -> Plaintext -> Ciphertext
 encrypt = Native.Sjcl.encrypt
 
-decrypt : String -> EncryptedData -> String
+decrypt : String -> Ciphertext -> Plaintext
 decrypt = Native.Sjcl.decrypt

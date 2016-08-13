@@ -20,14 +20,14 @@ import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (notFound404)
 import Web.Scotty (file, get, json, jsonData, param, put, scotty, status, text)
 
-import Sjcl (EncryptedData, emptyEncryptedData)
-
 import qualified Data.Set as Set
+
+type Ciphertext = Text
 
 data Entry = Entry
   { name :: Text
-  , login :: EncryptedData
-  , password :: EncryptedData
+  , login :: Ciphertext
+  , password :: Ciphertext
   } deriving (Generic)
 
 instance FromJSON Entry
@@ -45,8 +45,8 @@ instance Ord Entry where
 entryWithName :: Text -> Entry
 entryWithName entryName = Entry
   { name = entryName
-  , login = emptyEncryptedData
-  , password = emptyEncryptedData
+  , login = ""
+  , password = ""
   }
 
 lookupEntry :: Text -> Set Entry -> Maybe Entry
