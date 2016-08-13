@@ -63,6 +63,9 @@ serve entriesVar = scotty 2971 $ do
   get "/main.js" $
     file "static/main.js"
 
+  get "/sjcl.js" $
+    file "static/sjcl.js"
+
   get "/api/entries" $ do
     entries <- liftIO $ readTVarIO entriesVar
     let names = fmap name $ Set.toList entries

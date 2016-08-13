@@ -1,7 +1,10 @@
 # Build output
 /.stack-work
 /dist
+
+# Generated and downloaded files
 /static/main.js
+/static/sjcl.js
 
 # Cabal sandbox
 /.cabal-sandbox
