@@ -86,8 +86,15 @@ update msg model =
 
     EntryEditorMsg msg ->
       let
-        (updatedModel, entryCmd) = Entry.update saveEntry msg model.editEntry
-        cmd = Cmd.map EntryEditorMsg entryCmd
+        (updatedModel, entryCmd, outMsg) =
+          Entry.update saveEntry msg model.editEntry
+        innerCmd = Cmd.map EntryEditorMsg entryCmd
+        cmd =
+          case outMsg of
+            -- If saving was successful, reload the list of entries, because a
+            -- new one might have been added.
+            Just Entry.EntrySaved -> Cmd.batch [ innerCmd, getEntryNames ]
+            Nothing -> innerCmd
       in
         ({ model | editEntry = updatedModel }, cmd)
 

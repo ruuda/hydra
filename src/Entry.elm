@@ -9,6 +9,7 @@ module Entry exposing
   , Entry
   , Model
   , Msg
+  , OutMsg (EntrySaved)
   , empty
   , encrypt
   , update
@@ -51,19 +52,22 @@ type Msg
   | SaveSucceeded
   | SaveFailed Http.Error
 
+type OutMsg
+  = EntrySaved
+
 type alias SaveEntryFn = Entry -> Task Http.Error ()
 
-update : SaveEntryFn -> Msg -> Model -> (Model, Cmd Msg)
+update : SaveEntryFn -> Msg -> Model -> (Model, Cmd Msg, Maybe OutMsg)
 update saveEntry msg model =
   case msg of
     NameChanged newName ->
-      ({ model | name = newName }, Cmd.none)
+      ({ model | name = newName }, Cmd.none, Nothing)
 
     LoginChanged newLogin ->
-      ({ model | login = newLogin }, Cmd.none)
+      ({ model | login = newLogin }, Cmd.none, Nothing)
 
     PasswordChanged newPassword ->
-      ({ model | password = newPassword }, Cmd.none)
+      ({ model | password = newPassword }, Cmd.none, Nothing)
 
     SaveClicked ->
       let
@@ -71,15 +75,15 @@ update saveEntry msg model =
         handleSuccess _ = SaveSucceeded
         cmd = Task.perform handleFailure handleSuccess (saveEntry model)
       in
-        (model, cmd)
+        (model, cmd, Nothing)
 
     SaveFailed reason ->
       -- TODO: Retry? Display failure to the user?
-      (model, Cmd.none)
+      (model, Cmd.none, Nothing)
 
     SaveSucceeded ->
       -- TODO: Give success feedback to the user?
-      (model, Cmd.none)
+      (model, Cmd.none, Just EntrySaved)
 
 -- VIEW
 
