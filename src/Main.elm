@@ -4,9 +4,9 @@
 -- it under the terms of the GNU General Public License version 3. See
 -- the licence file in the root of the repository.
 
-import Html exposing (Html, button, div, h2, input, label, li, ul, text)
+import Html exposing (Html, a, br, button, div, h2, input, label, li, strong, ul, text)
 import Html.App as App
-import Html.Attributes exposing (placeholder)
+import Html.Attributes exposing (href, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Json
@@ -19,9 +19,6 @@ import Task exposing (Task, andThen, mapError)
 import Entry as Entry
 import Entry exposing (Entry)
 
--- Native import, see src/Native/Sjcl.js
-import Native.Sjcl exposing (encrypt, decrypt)
-
 main : Program Never
 main =
   App.program
@@ -30,18 +27,6 @@ main =
     , update = update
     , subscriptions = subscriptions
     }
-
--- Wrapper functions for the Stanford Javascript Crypto Library.
-
--- The json structure returned by SJCL. Could be given more structure,
--- but let's not bother for now.
-type alias EncryptedData = Json.Encode.Value
-
-encrypt : String -> String -> EncryptedData
-encrypt = Native.Sjcl.encrypt
-
-decrypt : String -> EncryptedData -> String
-decrypt = Native.Sjcl.decrypt
 
 -- MODEL
 
@@ -67,9 +52,17 @@ init = (emptyModel, getEntryNames)
 
 type Msg
   = SearchStringChanged String
+  | EntryToggled String
+  | EntryReceived Entry
+  | EntryFailed Http.Error
   | EntryNamesReceived (List String)
   | EntryNamesFailed Http.Error
   | EntryEditorMsg Entry.Msg
+
+expandEntry : String -> Model -> (Model, Cmd Msg)
+expandEntry entryName model =
+  -- TODO: Put it in a "waiting" state.
+  ({ model | currentEntry = Nothing }, loadEntry entryName)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -81,6 +74,24 @@ update msg model =
       ({ model | entryNames = names }, Cmd.none)
 
     EntryNamesFailed reason ->
+      -- TODO: Display a message? Retry?
+      (model, Cmd.none)
+
+    EntryToggled entryName ->
+      case model.currentEntry of
+        Nothing -> expandEntry entryName model
+        Just entry ->
+          if entry.name == entryName
+             then
+               -- If the entry was expanded, collapse it.
+               ({ model | currentEntry = Nothing }, Cmd.none)
+             else
+               expandEntry entryName model
+
+    EntryReceived entry ->
+      ({ model | currentEntry = Just entry }, Cmd.none)
+
+    EntryFailed reason ->
       -- TODO: Display a message? Retry?
       (model, Cmd.none)
 
@@ -107,8 +118,31 @@ filterEntries needle =
   in
     filter isMatch
 
-renderListItem : String -> Html Msg
-renderListItem entryName = li [] [ text entryName ]
+renderMatchingEntry : Maybe Entry -> String -> List (Html Msg)
+renderMatchingEntry maybeEntry entryName =
+  case maybeEntry of
+    Nothing -> []
+    Just entry ->
+      if entry.name /= entryName then
+        []
+      else
+        [ br [] []
+        , strong [] [ text "Login" ]
+        , text entry.login
+        , br [] []
+        , strong [] [ text "Password" ]
+        , text entry.password
+        ]
+
+renderListItem : Maybe Entry -> String -> Html Msg
+renderListItem currentEntry entryName =
+  let
+    link = a
+      [ href "#", onClick (EntryToggled entryName) ]
+      [ text entryName ]
+    content = renderMatchingEntry currentEntry entryName
+  in
+    li [] (link :: content)
 
 view : Model -> Html Msg
 view model =
@@ -120,7 +154,7 @@ view model =
       , div [] [ App.map EntryEditorMsg (Entry.view model.editEntry) ]
       , h2 [] [ text "Browse entries" ]
       , input [ placeholder "type here to search", onInput SearchStringChanged ] []
-      , ul [] (map renderListItem selectedEntries)
+      , ul [] (map (renderListItem model.currentEntry) selectedEntries)
       ]
 
 -- SUBSCRIPTIONS
@@ -141,11 +175,20 @@ decodeEntryNames : Json.Decoder (List String)
 decodeEntryNames =
   Json.list Json.string
 
+loadEntry : String -> Cmd Msg
+loadEntry entryName =
+  let
+    url = "/api/entries/" ++ (Http.uriEncode entryName)
+    getRequest = Http.get (Entry.decodeAndDecrypt "hard-coded-key") url
+  in
+    Task.perform EntryFailed EntryReceived getRequest
+
+
 saveEntry : Entry -> Task Http.Error ()
 saveEntry entry =
   let
     url = "/api/entries/" ++ (Http.uriEncode entry.name)
-    bodyJson = Entry.encrypt "hard-coded-key" entry
+    bodyJson = Entry.encryptAndEncode "hard-coded-key" entry
     body = Http.string (Json.Encode.encode 0 bodyJson)
     rawTask = Http.send Http.defaultSettings
       { verb = "PUT"

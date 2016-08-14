@@ -5,18 +5,20 @@
 -- the licence file in the root of the repository.
 
 module Entry exposing
-  ( EncryptedEntry
-  , Entry
+  ( Entry
   , Model
   , Msg
   , OutMsg (EntrySaved)
+  , decodeAndDecrypt
   , empty
-  , encrypt
+  , encryptAndEncode
   , update
   , view
   )
 
-import Json.Encode as Json
+import Json.Decode
+import Json.Decode exposing ((:=))
+import Json.Encode
 import Html exposing (Html, button, div, input, label, text)
 import Html.Events exposing (onClick, onInput)
 import Http
@@ -105,14 +107,34 @@ view model =
     , button [ onClick SaveClicked ] [ text "Save" ]
     ]
 
--- ENCRYPTION
+-- ENCODE & ENCRYPT
 
-type alias EncryptedEntry = Json.Value
+-- Encrypts the string using the key, then encodes the result as a json string.
+encodeEncryptedString : String -> String -> Json.Encode.Value
+encodeEncryptedString key str =
+  Json.Encode.string (Sjcl.encrypt key str)
 
-encrypt : String -> Entry -> EncryptedEntry
-encrypt key entry =
-  Json.object
-    [ ("name", Json.string entry.name)
-    , ("login", Json.string (Sjcl.encrypt key entry.login))
-    , ("password", Json.string (Sjcl.encrypt key entry.password))
+-- A json decoder that reads a string and decrypts it using the key.
+decodeEncryptedString : String -> Json.Decode.Decoder String
+decodeEncryptedString key =
+  -- TODO: Handle decryption failure.
+  Json.Decode.map (Sjcl.decrypt key) Json.Decode.string
+
+-- The idea of serialization here is that an Entry is never encrypted, but when
+-- encoded as json it is *always* encrypted, so it is not possible to send an
+-- entry over the wire unencrypted (unless it is serialized manually).
+
+encryptAndEncode : String -> Entry -> Json.Encode.Value
+encryptAndEncode key entry =
+  Json.Encode.object
+    [ ("name", Json.Encode.string entry.name)
+    , ("login", encodeEncryptedString key entry.login)
+    , ("password", encodeEncryptedString key entry.password)
     ]
+
+decodeAndDecrypt : String -> Json.Decode.Decoder Entry
+decodeAndDecrypt key =
+  Json.Decode.object3 Entry
+    ("name" := Json.Decode.string)
+    ("login" := decodeEncryptedString key)
+    ("password" := decodeEncryptedString key)

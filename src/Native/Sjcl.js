@@ -6,8 +6,7 @@ var _ruuda$hydra$Native_Sjcl = {
     // The 'sjcl' object is provided by SJCL itself in sjcl.js.
     'func': sjcl.encrypt
   },
-  'decrypt': {
-    'arity': 2,
-    'func': sjcl.decrypt
-  }
+  // For reasons unknown to me, 'encrypt' must be a wrapper object as above,
+  // but 'decrypt' is called directly, and it must be a function.
+  'decrypt': sjcl.decrypt
 };
