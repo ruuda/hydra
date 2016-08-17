@@ -10,7 +10,7 @@
 module Main where
 
 import Control.Concurrent.STM (atomically)
-import Control.Concurrent.STM.TVar (TVar, modifyTVar, newTVar, readTVarIO)
+import Control.Concurrent.STM.TVar (TVar, modifyTVar, newTVar, readTVar, readTVarIO)
 import Control.Monad (mfilter, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy (readFile, writeFile)
@@ -19,6 +19,8 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (notFound404)
 import Prelude hiding (readFile, writeFile)
+import System.Directory (doesFileExist)
+import System.Exit (exitFailure)
 import Web.Scotty (file, get, json, jsonData, param, put, scotty, status, text)
 
 import qualified Data.Aeson as Aeson
@@ -57,14 +59,27 @@ lookupEntry entryName entries =
   let isEqual entry = (name entry) == entryName
   in  mfilter isEqual $ Set.lookupLE (entryWithName entryName) entries
 
-persistEntries :: Set Entry -> IO ()
-persistEntries entries = writeFile "vault.json" (Aeson.encode entries)
+persistEntries :: FilePath -> Set Entry -> IO ()
+persistEntries fname entries = writeFile fname (Aeson.encode entries)
 
-loadEntries :: IO (Either String (Set Entry))
-loadEntries = Aeson.eitherDecode' <$> (readFile "vault.json")
+loadEntries :: FilePath -> IO (Set Entry)
+loadEntries fname = do
+  exists <- doesFileExist fname
+  if exists then do
+    jsonEntries <- readFile fname
+    case Aeson.eitherDecode' jsonEntries of
+      Left parseErr -> do
+        putStrLn "Vault has been damaged, it could not be loaded:"
+        putStrLn parseErr
+        exitFailure -- Terminate the program with failure exit code.
+      Right entries ->
+        return entries
+  else do
+    putStrLn "No existing vault found, using empty one."
+    return Set.empty
 
-serve :: TVar (Set Entry) -> IO ()
-serve entriesVar = scotty 2971 $ do
+serve :: TVar (Set Entry) -> (Set Entry -> IO ()) -> IO ()
+serve entriesVar persistCallback = scotty 2971 $ do
 
   get "/" $
     file "static/index.html"
@@ -89,8 +104,15 @@ serve entriesVar = scotty 2971 $ do
     nameParam <- param "name"
     when (name entry /= nameParam) $ fail "Entry name in url does not match name in body."
 
-    -- Insert the new entry (will overwrite if it exists).
-    liftIO $ atomically $ modifyTVar entriesVar $ Set.insert entry
+    -- Insert the new entry (will overwrite if it exists), and read the current
+    -- snapshot.
+    entries <- liftIO $ atomically $ do
+      modifyTVar entriesVar $ Set.insert entry
+      readTVar entriesVar
+
+    -- Persist the updated vault. TODO: This can race, it should be handled by
+    -- a queue or inside a lock.
+    liftIO $ persistCallback entries
 
     -- Respond with a simple text message.
     text "OK"
@@ -104,14 +126,6 @@ serve entriesVar = scotty 2971 $ do
 
 main :: IO ()
 main = do
-  let initialEntries = Set.fromList [
-          entryWithName "Fatima",
-          entryWithName "Frank",
-          entryWithName "Helen",
-          entryWithName "Henk",
-          entryWithName "Peter",
-          entryWithName "Piet"
-        ]
-  entriesVar <- atomically $ newTVar initialEntries
-  serve entriesVar
-
+  entries <- loadEntries "vault.json"
+  entriesVar <- atomically $ newTVar entries
+  serve entriesVar (persistEntries "vault.json")
