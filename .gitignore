@@ -16,3 +16,6 @@
 
 # Elm stuff
 /elm-stuff
+
+# Saved application state
+/vault.json
