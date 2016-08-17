@@ -13,13 +13,15 @@ import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TVar (TVar, modifyTVar, newTVar, readTVarIO)
 import Control.Monad (mfilter, when)
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson (FromJSON, ToJSON)
+import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Set (Set)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (notFound404)
+import Prelude hiding (readFile, writeFile)
 import Web.Scotty (file, get, json, jsonData, param, put, scotty, status, text)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.Set as Set
 
 type Ciphertext = Text
@@ -30,8 +32,9 @@ data Entry = Entry
   , password :: Ciphertext
   } deriving (Generic)
 
-instance FromJSON Entry
-instance ToJSON Entry
+instance Aeson.FromJSON Entry
+instance Aeson.ToJSON Entry where
+  toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 
 -- Define entry identity based on the name.
 instance Eq Entry where
@@ -53,6 +56,12 @@ lookupEntry :: Text -> Set Entry -> Maybe Entry
 lookupEntry entryName entries =
   let isEqual entry = (name entry) == entryName
   in  mfilter isEqual $ Set.lookupLE (entryWithName entryName) entries
+
+persistEntries :: Set Entry -> IO ()
+persistEntries entries = writeFile "vault.json" (Aeson.encode entries)
+
+loadEntries :: IO (Either String (Set Entry))
+loadEntries = Aeson.eitherDecode' <$> (readFile "vault.json")
 
 serve :: TVar (Set Entry) -> IO ()
 serve entriesVar = scotty 2971 $ do
